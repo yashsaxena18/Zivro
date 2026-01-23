@@ -1,0 +1,250 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  /* ========================================
+     PARTICLE & FLOAT ANIMATIONS
+     ======================================== */
+  
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0px) translateX(0px) translateZ(0); /* ✅ GPU acceleration */
+      opacity: 0;
+    }
+    10% {
+      opacity: 1;
+    }
+    90% {
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(-100vh) translateX(50px) translateZ(0);
+      opacity: 0;
+    }
+  }
+
+  @keyframes float-reverse {
+    0%, 100% {
+      transform: translateY(0px) translateX(0px) translateZ(0); /* ✅ GPU acceleration */
+      opacity: 0;
+    }
+    10% {
+      opacity: 1;
+    }
+    90% {
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(-100vh) translateX(-50px) translateZ(0);
+      opacity: 0;
+    }
+  }
+
+  /* ✅ NEW: Slow floating animation for Loader.jsx */
+  @keyframes floatSlow {
+    0%, 100% {
+      transform: translateY(0) translateX(0) translateZ(0);
+    }
+    25% {
+      transform: translateY(-20px) translateX(10px) translateZ(0);
+    }
+    50% {
+      transform: translateY(-10px) translateX(-10px) translateZ(0);
+    }
+    75% {
+      transform: translateY(-15px) translateX(5px) translateZ(0);
+    }
+  }
+
+  /* ========================================
+     SPARKLE & TWINKLE EFFECTS
+     ======================================== */
+
+  @keyframes twinkle {
+    0%, 100% {
+      opacity: 0;
+      transform: scale(0);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  /* ✅ NEW: Slow twinkle for particles */
+  @keyframes twinkleSlow {
+    0%, 100% {
+      opacity: 0.3;
+      transform: scale(1) translateZ(0); /* ✅ GPU acceleration */
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.5) translateZ(0);
+    }
+  }
+
+  /* ========================================
+     ROTATION ANIMATIONS
+     ======================================== */
+
+  @keyframes spin-slow {
+    from {
+      transform: rotate(0deg) translateZ(0); /* ✅ GPU acceleration */
+    }
+    to {
+      transform: rotate(360deg) translateZ(0);
+    }
+  }
+
+  /* ========================================
+     BOUNCE & WAVE EFFECTS
+     ======================================== */
+
+  @keyframes bounce-slow {
+    0%, 100% {
+      transform: translateY(0) translateZ(0); /* ✅ GPU acceleration */
+    }
+    50% {
+      transform: translateY(-20px) translateZ(0);
+    }
+  }
+
+  @keyframes wave {
+    0%, 100% {
+      transform: translateY(0) translateZ(0); /* ✅ GPU acceleration */
+    }
+    50% {
+      transform: translateY(-10px) translateZ(0);
+    }
+  }
+
+  /* ✅ NEW: Horizontal wave for energy flow */
+  @keyframes waveHorizontal {
+    0%, 100% {
+      transform: translateX(-100%) translateZ(0);
+    }
+    50% {
+      transform: translateX(100%) translateZ(0);
+    }
+  }
+
+  /* ========================================
+     FADE ANIMATIONS
+     ======================================== */
+
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(20px) translateZ(0); /* ✅ GPU acceleration */
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) translateZ(0);
+    }
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  /* ✅ NEW: Pulse animations for glow effects */
+  @keyframes pulseSlow {
+    0%, 100% {
+      opacity: 0.3;
+    }
+    50% {
+      opacity: 0.8;
+    }
+  }
+
+  /* ========================================
+     UTILITY CLASSES
+     ======================================== */
+
+  .animate-float {
+    animation: float linear infinite;
+    will-change: transform, opacity; /* ✅ Performance hint */
+  }
+
+  .animate-float-reverse {
+    animation: float-reverse linear infinite;
+    will-change: transform, opacity;
+  }
+
+  .animate-float-slow {
+    animation: floatSlow 20s ease-in-out infinite;
+    will-change: transform;
+  }
+
+  .animate-twinkle {
+    animation: twinkle ease-in-out infinite;
+    will-change: transform, opacity;
+  }
+
+  .animate-twinkle-slow {
+    animation: twinkleSlow 4s ease-in-out infinite;
+    will-change: transform, opacity;
+  }
+
+  .animate-spin-slow {
+    animation: spin-slow 8s linear infinite;
+    will-change: transform;
+  }
+
+  .animate-bounce-slow {
+    animation: bounce-slow 3s ease-in-out infinite;
+    will-change: transform;
+  }
+
+  .animate-wave {
+    animation: wave 1.5s ease-in-out infinite;
+    will-change: transform;
+  }
+
+  .animate-wave-horizontal {
+    animation: waveHorizontal 8s ease-in-out infinite;
+    will-change: transform;
+  }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 0.6s ease-out forwards;
+  }
+
+  .animate-fade-in {
+    animation: fade-in 1s ease-out forwards;
+  }
+
+  .animate-pulse-slow {
+    animation: pulseSlow 3s ease-in-out infinite;
+    will-change: opacity;
+  }
+
+  /* ========================================
+     PERFORMANCE OPTIMIZATION
+     ======================================== */
+
+  /* ✅ Reduce animations for users who prefer reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-float,
+    .animate-float-reverse,
+    .animate-float-slow,
+    .animate-twinkle,
+    .animate-twinkle-slow,
+    .animate-spin-slow,
+    .animate-bounce-slow,
+    .animate-wave,
+    .animate-wave-horizontal,
+    .animate-fade-in-up,
+    .animate-fade-in,
+    .animate-pulse-slow {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
+}
