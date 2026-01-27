@@ -1,12 +1,12 @@
 // server/socket-handler.js
-// ✅ FINAL — PRODUCTION-GRADE, MULTI-USER SAFE MATCHMAKING
+// ✅ FINAL — RACE-CONDITION SAFE, ATOMIC MATCHMAKING
 
 const {
   addToQueue,
   tryMatch,
-  removeUser,
-  getUserData,
-  getUserPartner,
+  nextPairAtomic,
+  endCallAtomic,
+  getUserData
 } = require("./queue");
 
 module.exports = function socketHandler(io) {
@@ -18,8 +18,6 @@ module.exports = function socketHandler(io) {
     // ==================================
     socket.on("join-queue", async (userData) => {
       try {
-        console.log(`📥 ${socket.id} joining queue`);
-
         const added = await addToQueue(socket.id, userData);
         if (!added) return;
 
@@ -30,66 +28,70 @@ module.exports = function socketHandler(io) {
     });
 
     // ==================================
-    // CLEANUP LOGIC (LEAVE / NEXT / DISCONNECT)
+    // NEXT (ANYONE → BOTH REQUEUE)
     // ==================================
-    const cleanupAndRequeuePartner = async (reason) => {
+    socket.on("next", async () => {
       try {
-        console.log(`👋 ${socket.id} cleanup (${reason})`);
+        const partner = await nextPairAtomic(socket.id);
 
-        // Get partner BEFORE removal
-        const partner = await getUserPartner(socket.id);
-        const partnerData = partner ? await getUserData(partner) : null;
-
-        // Remove current user completely
-        await removeUser(socket.id);
-
-        if (partner && partnerData) {
-          io.to(partner).emit("partner-left");
-
-          // Requeue ONLY the partner
-          await addToQueue(partner, partnerData);
-          await tryMatchAndEmit(io);
+        if (partner) {
+          io.to(partner).emit("partner-left", { reason: "next" });
         }
+
+        await tryMatchAndEmit(io);
       } catch (err) {
-        console.error(`❌ cleanup error (${reason}):`, err);
+        console.error("❌ next error:", err);
       }
-    };
+    });
 
     // ==================================
-    // END CALL
+    // END CALL (ONLY PARTNER REQUEUE)
     // ==================================
-    socket.on("leave-queue", () =>
-      cleanupAndRequeuePartner("leave-queue")
-    );
+    socket.on("leave-queue", async () => {
+      try {
+        const partner = await endCallAtomic(socket.id);
+
+        if (partner) {
+          io.to(partner).emit("partner-left", { reason: "leave" });
+        }
+
+        await tryMatchAndEmit(io);
+      } catch (err) {
+        console.error("❌ leave error:", err);
+      }
+    });
 
     // ==================================
-    // NEXT USER
+    // DISCONNECT (ONLY PARTNER REQUEUE)
     // ==================================
-    socket.on("next", () =>
-      cleanupAndRequeuePartner("next")
-    );
+    socket.on("disconnect", async () => {
+      try {
+        const partner = await endCallAtomic(socket.id);
+
+        if (partner) {
+          io.to(partner).emit("partner-left", { reason: "disconnect" });
+        }
+
+        await tryMatchAndEmit(io);
+      } catch (err) {
+        console.error("❌ disconnect error:", err);
+      }
+    });
 
     // ==================================
-    // WEBRTC SIGNALING
+    // WEBRTC SIGNALING (SAFE)
     // ==================================
     socket.on("signal", ({ to, data }) => {
       io.to(to).emit("signal", {
         from: socket.id,
-        data,
+        data
       });
     });
-
-    // ==================================
-    // DISCONNECT
-    // ==================================
-    socket.on("disconnect", () =>
-      cleanupAndRequeuePartner("disconnect")
-    );
   });
 };
 
 // ==================================
-// MATCH LOOP (SAFE FOR MULTI-USERS)
+// MATCH LOOP
 // ==================================
 async function tryMatchAndEmit(io) {
   while (true) {
@@ -106,24 +108,26 @@ async function tryMatchAndEmit(io) {
 async function emitMatch(io, match) {
   const { roomId, userA, userB } = match;
 
-  const userAData = await getUserData(userA);
-  const userBData = await getUserData(userB);
+  const [userAData, userBData] = await Promise.all([
+    getUserData(userA),
+    getUserData(userB)
+  ]);
 
-  const isAInitiator = roomId.includes(`${userA}_${userB}`);
+  const isAInitiator = roomId.startsWith(`room_${userA}_`);
 
   io.to(userA).emit("matched", {
     roomId,
     partnerId: userB,
     partnerName: userBData?.name || "Stranger",
-    isInitiator: isAInitiator,
+    isInitiator: isAInitiator
   });
 
   io.to(userB).emit("matched", {
     roomId,
     partnerId: userA,
     partnerName: userAData?.name || "Stranger",
-    isInitiator: !isAInitiator,
+    isInitiator: !isAInitiator
   });
 
-  console.log(`🎯 MATCHED ${userA} ↔ ${userB} | room=${roomId}`);
+  console.log(`🎯 MATCHED ${userA} ↔ ${userB}`);
 }

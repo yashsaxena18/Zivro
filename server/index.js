@@ -115,10 +115,10 @@ process.on("SIGTERM", shutdown);
     server.listen(PORT, "0.0.0.0", () => {
       console.log("=================================");
       console.log("🚀 Zivro Backend Running on Render");
-      console.log(`🌍 ENV: ${NODE_ENV}`);
-      console.log(`🔌 PORT: ${PORT}`);
-      console.log(`🖥 CLIENT: ${CLIENT_URL}`);
-      console.log("=================================");
+      // console.log(`🌍 ENV: ${NODE_ENV}`);
+      // console.log(`🔌 PORT: ${PORT}`);
+      // console.log(`🖥 CLIENT: ${CLIENT_URL}`);
+      // console.log("=================================");
     });
   } catch (err) {
     console.error("❌ Server failed to start:", err);

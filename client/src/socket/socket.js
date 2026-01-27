@@ -29,7 +29,7 @@ export const connectSocket = () => {
       return;
     }
 
-    console.log("🔌 Connecting socket to:", BACKEND_URL);
+    // console.log("🔌 Connecting socket to:", BACKEND_URL);
     socket.connect();
 
     const onConnect = () => {

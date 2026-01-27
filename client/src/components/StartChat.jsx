@@ -204,7 +204,7 @@ function StartChat({ onStart }) {
           {/* Right Form - REMOVED BORDER */}
           <div className="bg-white/5 dark:bg-white/5 backdrop-blur-xl rounded-3xl p-5 sm:p-8 md:p-10 shadow-2xl animate-fade-in-scale">
             <h2 className="text-xl sm:text-2xl font-bold text-white dark:text-gray-100 mb-1 sm:mb-2">
-              Start Your Journey
+              Start Your Chat
             </h2>
             <p className="text-purple-200/80 dark:text-gray-400 text-xs sm:text-sm mb-4 sm:mb-6">
               Fill in all details to connect with strangers worldwide
@@ -614,9 +614,6 @@ function StartChat({ onStart }) {
                 </div>
                 <div className="hover:text-white dark:hover:text-gray-200 transition-colors cursor-pointer">
                   Safety
-                </div>
-                <div className="hover:text-white dark:hover:text-gray-200 transition-colors cursor-pointer">
-                  Pricing
                 </div>
               </div>
             </div>

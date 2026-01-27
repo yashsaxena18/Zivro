@@ -1,5 +1,6 @@
 const redis = require("./redis");
 
+// ================= CONSTANTS =================
 const QUEUE_LIST = "zivro:queue:list";
 const QUEUE_SET = "zivro:queue:set";
 const ROOMS_KEY = "zivro:rooms";
@@ -8,11 +9,11 @@ const ROOM_DETAILS_KEY = "zivro:room_details";
 const USER_TTL = 600; // 10 minutes
 
 // ===================================================
-// ADD USER TO QUEUE
+// ADD USER TO QUEUE (JOIN)
 // ===================================================
 async function addToQueue(socketId, userData) {
-  const inSet = await redis.sismember(QUEUE_SET, socketId);
-  if (inSet) return false;
+  const inQueue = await redis.sismember(QUEUE_SET, socketId);
+  if (inQueue) return false;
 
   const inRoom = await redis.hget(ROOMS_KEY, socketId);
   if (inRoom) return false;
@@ -32,16 +33,16 @@ async function addToQueue(socketId, userData) {
 // ===================================================
 async function tryMatch() {
   const lua = `
-    local list = KEYS[1]
+    local queue = KEYS[1]
     local set = KEYS[2]
     local rooms = KEYS[3]
     local details = KEYS[4]
 
-    local a = redis.call('LPOP', list)
-    local b = redis.call('LPOP', list)
+    local a = redis.call('LPOP', queue)
+    local b = redis.call('LPOP', queue)
 
     if not a or not b then
-      if a then redis.call('LPUSH', list, a) end
+      if a then redis.call('LPUSH', queue, a) end
       return nil
     end
 
@@ -55,7 +56,7 @@ async function tryMatch() {
     redis.call('HSET', details, a, room)
     redis.call('HSET', details, b, room)
 
-    return {a, b, room}
+    return { a, b, room }
   `;
 
   const res = await redis.eval(
@@ -69,55 +70,113 @@ async function tryMatch() {
 
   if (!res) return null;
 
-  return { userA: res[0], userB: res[1], roomId: res[2] };
+  return {
+    userA: res[0],
+    userB: res[1],
+    roomId: res[2]
+  };
 }
 
 // ===================================================
-// REMOVE USER
+// NEXT (ANYONE CLICKS → BOTH REQUEUE)
 // ===================================================
-async function removeUser(socketId) {
-  const partner = await redis.hget(ROOMS_KEY, socketId);
+async function nextPairAtomic(socketId) {
+  const lua = `
+    local user = ARGV[1]
+    local partner = redis.call('HGET', KEYS[1], user)
 
-  await redis
-    .multi()
-    .lrem(QUEUE_LIST, 0, socketId)
-    .srem(QUEUE_SET, socketId)
-    .hdel(ROOMS_KEY, socketId)
-    .hdel(ROOM_DETAILS_KEY, socketId)
-    .del(`zivro:user:${socketId}`)
-    .exec();
+    -- remove user
+    redis.call('HDEL', KEYS[1], user)
+    redis.call('HDEL', KEYS[2], user)
+    redis.call('SREM', KEYS[4], user)
+    redis.call('LREM', KEYS[3], 0, user)
 
-  if (partner) {
-    await redis
-      .multi()
-      .hdel(ROOMS_KEY, partner)
-      .hdel(ROOM_DETAILS_KEY, partner)
-      .exec();
-  }
+    -- remove partner
+    if partner then
+      redis.call('HDEL', KEYS[1], partner)
+      redis.call('HDEL', KEYS[2], partner)
+      redis.call('SREM', KEYS[4], partner)
+      redis.call('LREM', KEYS[3], 0, partner)
+    end
 
-  return partner;
+    -- requeue BOTH
+    redis.call('RPUSH', KEYS[3], user)
+    redis.call('SADD', KEYS[4], user)
+
+    if partner then
+      redis.call('RPUSH', KEYS[3], partner)
+      redis.call('SADD', KEYS[4], partner)
+    end
+
+    return partner
+  `;
+
+  return redis.eval(
+    lua,
+    4,
+    ROOMS_KEY,
+    ROOM_DETAILS_KEY,
+    QUEUE_LIST,
+    QUEUE_SET,
+    socketId
+  );
 }
 
 // ===================================================
-// CLEANUP STALE USERS (🔥 FIX)
+// END / DISCONNECT (ONLY PARTNER REQUEUE)
+// ===================================================
+async function endCallAtomic(socketId) {
+  const lua = `
+    local user = ARGV[1]
+    local partner = redis.call('HGET', KEYS[1], user)
+
+    -- remove user completely
+    redis.call('HDEL', KEYS[1], user)
+    redis.call('HDEL', KEYS[2], user)
+    redis.call('SREM', KEYS[4], user)
+    redis.call('LREM', KEYS[3], 0, user)
+    redis.call('DEL', 'zivro:user:' .. user)
+
+    -- requeue ONLY partner
+    if partner then
+      redis.call('HDEL', KEYS[1], partner)
+      redis.call('HDEL', KEYS[2], partner)
+
+      redis.call('RPUSH', KEYS[3], partner)
+      redis.call('SADD', KEYS[4], partner)
+    end
+
+    return partner
+  `;
+
+  return redis.eval(
+    lua,
+    4,
+    ROOMS_KEY,
+    ROOM_DETAILS_KEY,
+    QUEUE_LIST,
+    QUEUE_SET,
+    socketId
+  );
+}
+
+// ===================================================
+// HARD CLEANUP (CRON / SAFETY)
 // ===================================================
 async function cleanupStaleUsers() {
   const users = await redis.smembers(QUEUE_SET);
   let cleaned = 0;
 
-  for (const socketId of users) {
-    const exists = await redis.exists(`zivro:user:${socketId}`);
-
-    // TTL expired → remove ghost user
+  for (const id of users) {
+    const exists = await redis.exists(`zivro:user:${id}`);
     if (!exists) {
       await redis
         .multi()
-        .srem(QUEUE_SET, socketId)
-        .lrem(QUEUE_LIST, 0, socketId)
-        .hdel(ROOMS_KEY, socketId)
-        .hdel(ROOM_DETAILS_KEY, socketId)
+        .srem(QUEUE_SET, id)
+        .lrem(QUEUE_LIST, 0, id)
+        .hdel(ROOMS_KEY, id)
+        .hdel(ROOM_DETAILS_KEY, id)
         .exec();
-
       cleaned++;
     }
   }
@@ -142,9 +201,10 @@ async function getUserData(id) {
 module.exports = {
   addToQueue,
   tryMatch,
-  removeUser,
+  nextPairAtomic,   // 🔥 NEXT
+  endCallAtomic,    // 🔥 DISCONNECT / END
   getUserPartner,
   getQueueLength,
   getUserData,
-  cleanupStaleUsers, // ✅ FIXED
+  cleanupStaleUsers
 };
