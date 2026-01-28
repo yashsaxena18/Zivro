@@ -1,12 +1,13 @@
 // server/socket-handler.js
-// ✅ FINAL — RACE-CONDITION SAFE, ATOMIC MATCHMAKING
+// ✅ FINAL — RACE-CONDITION SAFE, ATOMIC MATCHMAKING + STRANGER CHAT
 
 const {
   addToQueue,
   tryMatch,
   nextPairAtomic,
   endCallAtomic,
-  getUserData
+  getUserData,
+  getUserPartner
 } = require("./queue");
 
 module.exports = function socketHandler(io) {
@@ -79,13 +80,45 @@ module.exports = function socketHandler(io) {
     });
 
     // ==================================
+    // STRANGER CHAT (TEXT CHAT)
+    // ==================================
+    socket.on("chat-message", async ({ message }) => {
+      try {
+        if (!message || typeof message !== "string") return;
+
+        const text = message.trim().slice(0, 500);
+        if (!text) return;
+
+        // get current partner
+        const partner = await getUserPartner(socket.id);
+        if (!partner) return;
+
+        // send message only to current partner
+        io.to(partner).emit("chat-message", {
+          from: socket.id,
+          message: text,
+          timestamp: Date.now()
+        });
+      } catch (err) {
+        console.error("❌ chat-message error:", err);
+      }
+    });
+
+    // ==================================
     // WEBRTC SIGNALING (SAFE)
     // ==================================
-    socket.on("signal", ({ to, data }) => {
-      io.to(to).emit("signal", {
-        from: socket.id,
-        data
-      });
+    socket.on("signal", async ({ to, data }) => {
+      try {
+        const partner = await getUserPartner(socket.id);
+        if (partner !== to) return; // prevent cross-room signaling
+
+        io.to(to).emit("signal", {
+          from: socket.id,
+          data
+        });
+      } catch (err) {
+        console.error("❌ signal error:", err);
+      }
     });
   });
 };
