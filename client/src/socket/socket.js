@@ -9,7 +9,7 @@ if (!BACKEND_URL) {
 }
 
 // ✅ Create socket (DO NOT CONNECT YET)
-const socket = io(BACKEND_URL, {
+export const socket = io(BACKEND_URL, {
   autoConnect: false,
   reconnection: true,
   reconnectionAttempts: 5,
