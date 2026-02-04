@@ -8,4 +8,12 @@ export default defineConfig({
     host: "localhost", // dev only
     port: 5173,
   },
+  build: {
+    rollupOptions: {
+      external: [],
+    },
+  },
+  optimizeDeps: {
+    include: ["socket.io-client"],
+  },
 });
