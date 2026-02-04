@@ -216,57 +216,62 @@ function VideoChat({
         </div>
       </div>
 
-      {/* FULL SCREEN VIDEO AREA */}
-      <div className="h-full w-full pt-16 md:pt-24 pb-28 md:pb-32">
-        <div className="h-full w-full px-4 md:px-6">
-          <div className="h-full max-w-7xl mx-auto relative">
-            {/* REMOTE VIDEO - MAIN */}
-            <div className="absolute inset-0 rounded-3xl overflow-hidden border border-white/10 bg-gray-900">
-              <video
-                ref={remoteVideoRef}
-                autoPlay
-                playsInline
-                className="w-full h-full object-cover"
-              />
-              
-              {/* Connection overlay when not connected */}
-              {!remoteConnected && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-                  <div className="text-center">
-                    <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                    <p className="text-lg">Connecting to {partnerName || "stranger"}...</p>
+      {/* MAIN CONTENT AREA - RESIZES WHEN CHAT IS OPEN */}
+      <div className={`h-full transition-all duration-300 ease-in-out ${
+        isChatOpen ? 'md:mr-96' : 'mr-0'
+      }`}>
+        {/* FULL SCREEN VIDEO AREA */}
+        <div className="h-full w-full pt-16 md:pt-24 pb-28 md:pb-32">
+          <div className="h-full w-full px-4 md:px-6">
+            <div className="h-full max-w-7xl mx-auto relative">
+              {/* REMOTE VIDEO - MAIN */}
+              <div className="absolute inset-0 rounded-3xl overflow-hidden border border-white/10 bg-gray-900">
+                <video
+                  ref={remoteVideoRef}
+                  autoPlay
+                  playsInline
+                  className="w-full h-full object-cover"
+                />
+                
+                {/* Connection overlay when not connected */}
+                {!remoteConnected && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                    <div className="text-center">
+                      <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                      <p className="text-lg">Connecting to {partnerName || "stranger"}...</p>
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-
-            {/* LOCAL VIDEO - PICTURE IN PICTURE */}
-            <div className="absolute bottom-4 right-4 w-48 h-36 md:w-64 md:h-48 rounded-2xl overflow-hidden border-2 border-blue-500/50 bg-gray-800 shadow-2xl z-10">
-              <video
-                ref={localVideoRef}
-                autoPlay
-                muted
-                playsInline
-                className="w-full h-full object-cover scale-x-[-1]"
-              />
-              
-              {/* Local video label */}
-              <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-sm px-3 py-1 rounded-full text-xs">
-                You
+                )}
               </div>
-              
-              {/* Muted indicators on local video */}
-              {!localVideoEnabled && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/70">
-                  <VideoOff className="w-8 h-8 text-white" />
+
+              {/* LOCAL VIDEO - PICTURE IN PICTURE */}
+              <div className="absolute bottom-4 right-4 w-32 h-24 md:w-48 md:h-36 lg:w-64 lg:h-48 rounded-2xl overflow-hidden border-2 border-blue-500/50 bg-gray-800 shadow-2xl z-10">
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  muted
+                  playsInline
+                  className="w-full h-full object-cover scale-x-[-1]"
+                />
+                
+                {/* Local video label */}
+                <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-sm px-3 py-1 rounded-full text-xs">
+                  You
                 </div>
-              )}
+                
+                {/* Muted indicators on local video */}
+                {!localVideoEnabled && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/70">
+                    <VideoOff className="w-8 h-8 text-white" />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* SLIDING CHAT PANEL */}
+      {/* SLIDING CHAT PANEL - OVERLAYS ON MOBILE, SIDE-BY-SIDE ON DESKTOP */}
       <div
         className={`fixed top-0 right-0 h-full w-full md:w-96 bg-black/95 backdrop-blur-xl border-l border-white/10 z-30 transform transition-transform duration-300 ease-in-out ${
           isChatOpen ? "translate-x-0" : "translate-x-full"
