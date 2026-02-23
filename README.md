@@ -1,139 +1,127 @@
-# ZIVRO
+# 🎥 ZIVRO
 
-ZIVRO is a real-time random video chat platform with stranger matching, one-to-one WebRTC calls, and in-call text chat.
+> Real-time random video chat — meet strangers instantly with one-to-one WebRTC calls and live text messaging.
 
-This repository is split into:
-- `client/`: React + Vite frontend
-- `server/`: Node.js + Express + Socket.IO + Redis backend
+---
 
-## Features
+## ✨ Features
 
-- Random stranger matching using an atomic Redis queue
-- One-to-one video/audio chat using WebRTC
-- In-call text messaging
-- `Next` behavior that requeues both users
-- `Leave`/disconnect behavior that requeues only the partner
-- Dark/light mode toggle on landing page
-- Media permission gate and terms acceptance gate before joining queue
-- Health endpoint for backend uptime/Redis checks
+| Feature | Details |
+|---|---|
+| 🎲 Random Matching | Atomic Redis queue pairs strangers instantly |
+| 📹 Video & Audio | Peer-to-peer WebRTC calls — no media touches the server |
+| 💬 In-call Chat | Real-time text messaging during your video session |
+| ⏭ Skip & Requeue | `Next` requeues both users; `Leave` requeues only your partner |
+| 🌗 Dark / Light Mode | Theme toggle on the landing page |
+| 🔒 Permission Gate | Camera/mic permission and terms acceptance required before joining |
+| 🩺 Health Endpoint | Backend uptime + Redis status check built in |
 
-## Architecture Overview
+---
 
-- Signaling and matchmaking run through Socket.IO on the backend.
-- Media flows peer-to-peer via WebRTC between users.
-- Redis stores queue state, room relationships, and temporary user profile data.
+## 🏗 Architecture Overview
 
-### High-level flow
+```
+┌─────────────────────────────────────────────────────┐
+│                     Browser (React)                  │
+│  StartChat → Permissions → Terms → Queue → VideoChat │
+└────────────────────┬────────────────────────────────┘
+                     │  Socket.IO (signaling)
+┌────────────────────▼────────────────────────────────┐
+│             Backend (Node.js + Socket.IO)            │
+│         Matchmaking · Signaling · Chat relay         │
+└────────────────────┬────────────────────────────────┘
+                     │  ioredis
+┌────────────────────▼────────────────────────────────┐
+│                      Redis                           │
+│         Queue · Rooms · Temporary user data          │
+└─────────────────────────────────────────────────────┘
+              ↕ WebRTC (peer-to-peer media)
+         Browser ◄────────────────────► Browser
+```
 
-1. User opens frontend and submits profile (name, gender, region).
-2. User grants camera/mic permission and accepts terms.
-3. Frontend emits `join-queue`.
-4. Backend enqueues user in Redis and tries to match in pairs.
-5. On match, backend emits `matched` to both users with role (`isInitiator`).
-6. Peers exchange WebRTC offer/answer/ICE via `signal` events.
-7. Users can chat (`chat-message`), skip (`next`), or leave (`leave-queue`).
+### High-level Call Flow
 
-## Tech Stack
+1. User submits profile *(name, gender, region)* on the landing page
+2. Camera/mic permission granted → terms accepted
+3. Frontend emits `join-queue`
+4. Backend enqueues user in Redis and attempts atomic pair matching
+5. On match, both users receive `matched` event with role (`isInitiator`)
+6. Peers exchange WebRTC offer / answer / ICE candidates via `signal` events
+7. Users can chat (`chat-message`), skip (`next`), or leave (`leave-queue`)
 
-### Frontend (`client/`)
+---
 
-- React 19
-- Vite 7
-- Tailwind CSS 3
-- Socket.IO client 4
-- WebRTC APIs (`RTCPeerConnection`)
-- Lucide React icons
+## 🛠 Tech Stack
 
-### Backend (`server/`)
+### Frontend — `client/`
 
-- Node.js (CommonJS)
-- Express 5
-- Socket.IO 4
-- Redis (ioredis)
-- Helmet, CORS, Morgan, Dotenv
+- **React 19** + **Vite 7**
+- **Tailwind CSS 3**
+- **Socket.IO Client 4**
+- **WebRTC** (`RTCPeerConnection`)
+- **Lucide React** icons
 
-## Repository Structure
+### Backend — `server/`
+
+- **Node.js** (CommonJS) + **Express 5**
+- **Socket.IO 4**
+- **Redis** via `ioredis`
+- **Helmet · CORS · Morgan · Dotenv**
+
+---
+
+## 📁 Repository Structure
 
 ```text
 Zivro/
-  client/
-    src/
-      components/
-        StartChat.jsx
-        MediaPermissionModal.jsx
-        TermsModal.jsx
-        Loader.jsx
-        VideoChat.jsx
-      socket/socket.js
-      webrtc/peer.js
-      App.jsx
-      main.jsx
-      index.css
-    package.json
-    vite.config.js
-    tailwind.config.js
-    vercel.json
-    .env
-  server/
-    index.js
-    socket-handler.js
-    queue.js
-    redis.js
-    package.json
-    .env
-  .gitignore
+├── client/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── StartChat.jsx
+│   │   │   ├── MediaPermissionModal.jsx
+│   │   │   ├── TermsModal.jsx
+│   │   │   ├── Loader.jsx
+│   │   │   └── VideoChat.jsx
+│   │   ├── socket/socket.js
+│   │   ├── webrtc/peer.js
+│   │   ├── App.jsx
+│   │   ├── main.jsx
+│   │   └── index.css
+│   ├── package.json
+│   ├── vite.config.js
+│   ├── tailwind.config.js
+│   └── vercel.json
+└── server/
+    ├── index.js
+    ├── socket-handler.js
+    ├── queue.js
+    ├── redis.js
+    └── package.json
 ```
 
-## Environment Variables
+---
 
-### Backend (`server/.env`)
+## ⚙️ Local Development Setup
 
-Required:
+### Prerequisites
 
-- `REDIS_URL`: Redis connection URL (example: `redis://127.0.0.1:6379`)
-- `CLIENT_URL`: Allowed frontend origin for CORS/Socket.IO
-
-Optional:
-
-- `PORT`: Backend port (default: `5000`)
-- `NODE_ENV`: Environment mode (default: `production`)
-- `LOG_LEVEL`: Present in `.env`, currently not used in code
-
-Notes:
-- `redis.js` supports `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`, but `index.js` currently exits if `REDIS_URL` is missing.
-
-### Frontend (`client/.env`)
-
-Required:
-
-- `VITE_BACKEND_URL`: Backend base URL for Socket.IO client
-
-Optional:
-
-- `VITE_APP_ENV`: Present in `.env`, currently not used in code
-
-## Local Development Setup
-
-## 1) Prerequisites
-
-- Node.js 18+
+- Node.js `18+`
 - npm
-- Redis server
+- A running Redis server
 
-## 2) Install dependencies
+### 1. Install Dependencies
 
 ```bash
-cd server
-npm install
+# Backend
+cd server && npm install
 
-cd ../client
-npm install
+# Frontend
+cd ../client && npm install
 ```
 
-## 3) Configure env files
+### 2. Configure Environment
 
-Backend (`server/.env`) example:
-
+**`server/.env`**
 ```env
 NODE_ENV=development
 PORT=5000
@@ -141,143 +129,145 @@ REDIS_URL=redis://127.0.0.1:6379
 CLIENT_URL=http://localhost:5173
 ```
 
-Frontend (`client/.env`) example:
-
+**`client/.env`**
 ```env
 VITE_BACKEND_URL=http://localhost:5000
 VITE_APP_ENV=development
 ```
 
-## 4) Start services
-
-Start backend:
+### 3. Start Services
 
 ```bash
-cd server
-node index.js
+# Terminal 1 — Backend
+cd server && node index.js
+
+# Terminal 2 — Frontend
+cd client && npm run dev
 ```
 
-Start frontend:
+Frontend runs at **`http://localhost:5173`**
 
-```bash
-cd client
-npm run dev
+---
+
+## 🔌 API & Socket Contract
+
+### HTTP
+
+```
+GET /health
+→ 200  { status: "ok", env, uptime }
+→ 503  { status: "redis-down" }
 ```
 
-Frontend dev URL: `http://localhost:5173`
+### Client → Server Events
 
-## Backend API and Socket Contract
+| Event | Payload |
+|---|---|
+| `join-queue` | `{ name, gender, region }` |
+| `signal` | `{ to, data }` |
+| `chat-message` | `{ message }` |
+| `next` | *(none)* |
+| `leave-queue` | *(none)* |
 
-### HTTP endpoint
+### Server → Client Events
 
-- `GET /health`
-  - `200`: `{ status: "ok", env, uptime }`
-  - `503`: `{ status: "redis-down" }`
+| Event | Payload |
+|---|---|
+| `matched` | `{ roomId, partnerId, partnerName, isInitiator }` |
+| `partner-left` | `{ reason: "next" \| "leave" \| "disconnect" }` |
+| `signal` | `{ from, data }` |
+| `chat-message` | `{ from, message, timestamp }` |
 
-### Client -> Server Socket events
+---
 
-- `join-queue` with payload:
-  - `{ name, gender, region }`
-- `next` (no payload)
-- `leave-queue` (no payload)
-- `signal` with payload:
-  - `{ to, data }`
-- `chat-message` with payload:
-  - `{ message }`
+## 🗄 Redis Data Model
 
-### Server -> Client Socket events
+| Key | Type | Purpose |
+|---|---|---|
+| `zivro:queue:list` | List | Matchmaking queue |
+| `zivro:queue:set` | Set | De-duplication guard |
+| `zivro:rooms` | Hash | `user → partner` mapping |
+| `zivro:room_details` | Hash | `user → roomId` mapping |
+| `zivro:user:{socketId}` | String (JSON) | Temporary profile, 10min TTL |
 
-- `matched`:
-  - `{ roomId, partnerId, partnerName, isInitiator }`
-- `partner-left`:
-  - `{ reason: "next" | "leave" | "disconnect" }`
-- `signal`:
-  - `{ from, data }`
-- `chat-message`:
-  - `{ from, message, timestamp }`
+### Atomic Operations (Lua-backed)
 
-## Redis Data Model and Matchmaking
+- **`tryMatch()`** — pops two users and creates room mappings atomically
+- **`nextPairAtomic()`** — removes both users from room and requeues both
+- **`endCallAtomic()`** — removes caller and requeues only the partner
 
-Queue and room state keys:
+---
 
-- `zivro:queue:list` (Redis list)
-- `zivro:queue:set` (Redis set for de-duplication)
-- `zivro:rooms` (hash: user -> partner)
-- `zivro:room_details` (hash: user -> roomId)
-- `zivro:user:{socketId}` (string JSON with TTL, default 10 minutes)
+## 🖥 Frontend State Flow
 
-Atomic behavior (Lua-backed):
+```
+idle → permissions → terms → queue → chat
+```
 
-- `tryMatch()`: pops two users and creates pair/room mappings atomically.
-- `nextPairAtomic()`: removes both users from current room and requeues both.
-- `endCallAtomic()`: removes caller fully and requeues only partner.
+| Action | Behavior |
+|---|---|
+| `Cancel` in queue | Emits `leave-queue`, resets to home |
+| `Next` in chat | Emits `next`, returns to queue UI |
+| `End call` | Emits `leave-queue`, resets to home |
 
-## Frontend State Flow
+---
 
-`App.jsx` status transitions:
+## 🚀 Deployment
 
-- `idle` -> `permissions` -> `terms` -> `queue` -> `chat`
+### Frontend — Vercel
 
-Control behavior:
+`vercel.json` is pre-configured. Set:
+```env
+VITE_BACKEND_URL=https://<your-backend-domain>
+```
 
-- `Cancel` in queue calls `leaveQueue()` and resets to home.
-- `Next` in chat emits `next` and returns to queue UI.
-- `End call` emits `leave-queue` and resets to home.
+### Backend — Render / Railway
 
-## Deployment Notes
+Binds `0.0.0.0`, includes `/health` check, and handles graceful shutdown on `SIGINT`/`SIGTERM`. Set:
+```env
+CLIENT_URL=https://<your-frontend-domain>
+REDIS_URL=<managed-redis-url>
+NODE_ENV=production
+```
 
-- Frontend includes `vercel.json` for Vercel build output (`dist`).
-- Backend is configured for Render-style deployment:
-  - Binds `0.0.0.0`
-  - Has `/health` check
-  - Graceful shutdown on `SIGINT`/`SIGTERM`
+---
 
-Recommended production env:
+## 🔒 Security & Reliability
 
-- Backend:
-  - `CLIENT_URL=https://<your-frontend-domain>`
-  - `REDIS_URL=<managed-redis-url>`
-  - `NODE_ENV=production`
-- Frontend:
-  - `VITE_BACKEND_URL=https://<your-backend-domain>`
-
-## Security and Reliability Notes
-
-- CORS restricted to `CLIENT_URL`
-- Helmet enabled (CSP disabled explicitly)
-- Socket signaling is partner-validated (`partner === to`)
-- Chat messages are trimmed and capped to 500 chars server-side
+- CORS restricted to `CLIENT_URL` only
+- Helmet enabled (CSP explicitly disabled for WebRTC compatibility)
+- Socket signaling validated — only forwarded to the verified partner
+- Chat messages trimmed and capped at **500 characters** server-side
 - Redis reconnect strategy and readiness hooks included
-- Graceful shutdown closes Socket.IO, HTTP server, and Redis
+- Graceful shutdown closes Socket.IO, HTTP server, and Redis in sequence
 
-## Known Gaps / Improvements
+---
 
-- `server/package.json` has no `start`/`dev` script (only placeholder `test`).
-- `cleanupStaleUsers()` exists in `queue.js` but is not scheduled/invoked.
-- `client/index.html` links `/src/style.css`, but that file is not present.
-- TURN credentials in `client/src/webrtc/peer.js` are public/test credentials; use private TURN for production.
-- No automated tests are currently configured.
+## ⚠️ Known Gaps & Improvements
 
-## Useful Commands
+- `server/package.json` has no `start` or `dev` script (only a placeholder `test`)
+- `cleanupStaleUsers()` exists in `queue.js` but is never scheduled or invoked
+- `client/index.html` references `/src/style.css` which does not exist
+- TURN credentials in `webrtc/peer.js` are public test credentials — **use private TURN in production**
+- No automated tests are currently configured
 
-Frontend:
+---
 
-```bash
-cd client
-npm run dev
-npm run build
-npm run preview
-npm run lint
-```
-
-Backend:
+## 📦 Useful Commands
 
 ```bash
-cd server
-node index.js
+# Frontend
+npm run dev       # Start dev server
+npm run build     # Production build
+npm run preview   # Preview production build
+npm run lint      # Lint source files
+
+# Backend
+node index.js     # Start server
 ```
 
-## License
+---
 
-No root license file is included in this repository. Backend `package.json` currently lists `ISC`.
+## 📄 License
 
+ISC *(backend `package.json`)* — no root license file is currently included.
