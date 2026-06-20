@@ -12,20 +12,41 @@ const USER_TTL = 600; // 10 minutes
 // ADD USER TO QUEUE (JOIN)
 // ===================================================
 async function addToQueue(socketId, userData) {
-  const inQueue = await redis.sismember(QUEUE_SET, socketId);
-  if (inQueue) return false;
+  const lua = `
+    local set = KEYS[1]
+    local rooms = KEYS[2]
+    local queue = KEYS[3]
+    local userKey = KEYS[4]
+    
+    local user = ARGV[1]
+    local data = ARGV[2]
+    local ttl = ARGV[3]
 
-  const inRoom = await redis.hget(ROOMS_KEY, socketId);
-  if (inRoom) return false;
+    -- Check if already in queue or in a room
+    if redis.call('SISMEMBER', set, user) == 1 then return 0 end
+    if redis.call('HEXISTS', rooms, user) == 1 then return 0 end
 
-  await redis
-    .multi()
-    .set(`zivro:user:${socketId}`, JSON.stringify(userData), "EX", USER_TTL)
-    .rpush(QUEUE_LIST, socketId)
-    .sadd(QUEUE_SET, socketId)
-    .exec();
+    -- Add to queue
+    redis.call('SET', userKey, data, 'EX', ttl)
+    redis.call('RPUSH', queue, user)
+    redis.call('SADD', set, user)
 
-  return true;
+    return 1
+  `;
+
+  const added = await redis.eval(
+    lua,
+    4,
+    QUEUE_SET,
+    ROOMS_KEY,
+    QUEUE_LIST,
+    `zivro:user:${socketId}`,
+    socketId,
+    JSON.stringify(userData),
+    USER_TTL
+  );
+
+  return added === 1;
 }
 
 // ===================================================

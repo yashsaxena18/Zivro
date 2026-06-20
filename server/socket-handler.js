@@ -36,8 +36,12 @@ module.exports = function socketHandler(io) {
         const partner = await nextPairAtomic(socket.id);
 
         if (partner) {
+          const partnerSocket = io.sockets.sockets.get(partner);
+          if (partnerSocket) partnerSocket.partnerId = null;
+
           io.to(partner).emit("partner-left", { reason: "next" });
         }
+        socket.partnerId = null;
 
         await tryMatchAndEmit(io);
       } catch (err) {
@@ -53,8 +57,12 @@ module.exports = function socketHandler(io) {
         const partner = await endCallAtomic(socket.id);
 
         if (partner) {
+          const partnerSocket = io.sockets.sockets.get(partner);
+          if (partnerSocket) partnerSocket.partnerId = null;
+
           io.to(partner).emit("partner-left", { reason: "leave" });
         }
+        socket.partnerId = null;
 
         await tryMatchAndEmit(io);
       } catch (err) {
@@ -70,8 +78,12 @@ module.exports = function socketHandler(io) {
         const partner = await endCallAtomic(socket.id);
 
         if (partner) {
+          const partnerSocket = io.sockets.sockets.get(partner);
+          if (partnerSocket) partnerSocket.partnerId = null;
+
           io.to(partner).emit("partner-left", { reason: "disconnect" });
         }
+        socket.partnerId = null;
 
         await tryMatchAndEmit(io);
       } catch (err) {
@@ -89,8 +101,13 @@ module.exports = function socketHandler(io) {
         const text = message.trim().slice(0, 500);
         if (!text) return;
 
-        // get current partner
-        const partner = await getUserPartner(socket.id);
+        // get current partner (use fast path cache to avoid Redis lag)
+        let partner = socket.partnerId;
+        if (!partner) {
+          partner = await getUserPartner(socket.id);
+          socket.partnerId = partner; // cache it
+        }
+
         if (!partner) return;
 
         // send message only to current partner
@@ -109,7 +126,13 @@ module.exports = function socketHandler(io) {
     // ==================================
     socket.on("signal", async ({ to, data }) => {
       try {
-        const partner = await getUserPartner(socket.id);
+        // FAST PATH: Use cached partnerId to avoid Redis network latency on every ICE candidate
+        let partner = socket.partnerId;
+        if (!partner) {
+          partner = await getUserPartner(socket.id);
+          socket.partnerId = partner; // cache it
+        }
+
         if (partner !== to) return; // prevent cross-room signaling
 
         io.to(to).emit("signal", {
@@ -145,6 +168,12 @@ async function emitMatch(io, match) {
     getUserData(userA),
     getUserData(userB)
   ]);
+
+  // Cache partner on the socket object for fast signaling (avoids Redis delay)
+  const socketA = io.sockets.sockets.get(userA);
+  const socketB = io.sockets.sockets.get(userB);
+  if (socketA) socketA.partnerId = userB;
+  if (socketB) socketB.partnerId = userA;
 
   const isAInitiator = roomId.startsWith(`room_${userA}_`);
 
