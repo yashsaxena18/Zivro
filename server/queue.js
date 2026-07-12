@@ -60,22 +60,44 @@ async function tryMatch() {
     local details = KEYS[4]
 
     local a = redis.call('LPOP', queue)
-    local b = redis.call('LPOP', queue)
+    if not a then return nil end
 
-    if not a or not b then
-      if a then redis.call('LPUSH', queue, a) end
+    local b = redis.call('LPOP', queue)
+    if not b then
+      redis.call('LPUSH', queue, a)
       return nil
+    end
+
+    -- Prevent immediate rematching
+    local last_partner_a = redis.call('GET', 'zivro:last_partner:' .. a)
+    if last_partner_a == b then
+      local c = redis.call('LPOP', queue)
+      if not c then
+        -- Only 2 people in queue and they just skipped each other. Do not match.
+        redis.call('LPUSH', queue, b)
+        redis.call('LPUSH', queue, a)
+        return nil
+      end
+      -- Match 'a' with 'c', put 'b' back in queue at the front
+      redis.call('LPUSH', queue, b)
+      b = c
     end
 
     redis.call('SREM', set, a)
     redis.call('SREM', set, b)
 
-    local room = 'room_' .. a .. '_' .. b
+    -- Unique Room ID fixes React state batching bugs
+    local timestamp = redis.call('TIME')[1]
+    local room = 'room_' .. a .. '_' .. b .. '_' .. timestamp
 
     redis.call('HSET', rooms, a, b)
     redis.call('HSET', rooms, b, a)
     redis.call('HSET', details, a, room)
     redis.call('HSET', details, b, room)
+
+    -- Save last partner to prevent immediate rematching (expires in 120s)
+    redis.call('SETEX', 'zivro:last_partner:' .. a, 120, b)
+    redis.call('SETEX', 'zivro:last_partner:' .. b, 120, a)
 
     return { a, b, room }
   `;

@@ -160,6 +160,16 @@ export const onDisconnect = (callback) => {
   return () => socket.off("disconnect", handler);
 };
 
+export const onConnectGlobal = (callback) => {
+  const handler = () => {
+    console.log("✅ Global socket connected/reconnected!");
+    callback();
+  };
+
+  socket.on("connect", handler);
+  return () => socket.off("connect", handler);
+};
+
 // ========================================
 // UTILS
 // ========================================

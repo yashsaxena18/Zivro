@@ -83,7 +83,7 @@ function VideoChat({
   // CHAT LISTENERS
   // ===================================================
   useEffect(() => {
-    socket.on("chat-message", ({ from, message, timestamp }) => {
+    const handleChatMessage = ({ from, message, timestamp }) => {
       setMessages((prev) => [
         ...prev,
         { from, message, timestamp },
@@ -93,17 +93,20 @@ function VideoChat({
       if (!isChatOpen) {
         setUnreadCount((prev) => prev + 1);
       }
-    });
+    };
 
-    socket.on("partner-left", () => {
+    const handlePartnerLeft = () => {
       setMessages([]);
       setChatInput("");
       setUnreadCount(0);
-    });
+    };
+
+    socket.on("chat-message", handleChatMessage);
+    socket.on("partner-left", handlePartnerLeft);
 
     return () => {
-      socket.off("chat-message");
-      socket.off("partner-left");
+      socket.off("chat-message", handleChatMessage);
+      socket.off("partner-left", handlePartnerLeft);
     };
   }, [isChatOpen]);
 

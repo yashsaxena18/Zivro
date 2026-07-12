@@ -7,10 +7,23 @@ const {
   nextPairAtomic,
   endCallAtomic,
   getUserData,
-  getUserPartner
+  getUserPartner,
+  cleanupStaleUsers
 } = require("./queue");
 
 module.exports = function socketHandler(io) {
+  // CRON TASK: Cleanup stale users every 5 minutes
+  setInterval(async () => {
+    try {
+      const cleaned = await cleanupStaleUsers();
+      if (cleaned > 0) {
+        console.log(`🧹 Cleaned up ${cleaned} stale users from queue.`);
+      }
+    } catch (err) {
+      console.error("❌ Cleanup error:", err);
+    }
+  }, 5 * 60 * 1000);
+
   io.on("connection", (socket) => {
     console.log(`✅ Client connected: ${socket.id}`);
 
@@ -22,7 +35,7 @@ module.exports = function socketHandler(io) {
         const added = await addToQueue(socket.id, userData);
         if (!added) return;
 
-        await tryMatchAndEmit(io);
+        triggerMatchmaking(io);
       } catch (err) {
         console.error("❌ join-queue error:", err);
       }
@@ -43,7 +56,7 @@ module.exports = function socketHandler(io) {
         }
         socket.partnerId = null;
 
-        await tryMatchAndEmit(io);
+        triggerMatchmaking(io);
       } catch (err) {
         console.error("❌ next error:", err);
       }
@@ -64,7 +77,7 @@ module.exports = function socketHandler(io) {
         }
         socket.partnerId = null;
 
-        await tryMatchAndEmit(io);
+        triggerMatchmaking(io);
       } catch (err) {
         console.error("❌ leave error:", err);
       }
@@ -85,7 +98,7 @@ module.exports = function socketHandler(io) {
         }
         socket.partnerId = null;
 
-        await tryMatchAndEmit(io);
+        triggerMatchmaking(io);
       } catch (err) {
         console.error("❌ disconnect error:", err);
       }
@@ -145,6 +158,31 @@ module.exports = function socketHandler(io) {
     });
   });
 };
+
+// ==================================
+// DEBOUNCED MATCHMAKING
+// ==================================
+let isMatching = false;
+let matchRequested = false;
+
+async function triggerMatchmaking(io) {
+  if (isMatching) {
+    matchRequested = true;
+    return;
+  }
+  
+  isMatching = true;
+  matchRequested = false;
+  
+  try {
+    await tryMatchAndEmit(io);
+  } finally {
+    isMatching = false;
+    if (matchRequested) {
+      triggerMatchmaking(io);
+    }
+  }
+}
 
 // ==================================
 // MATCH LOOP

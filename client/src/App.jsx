@@ -9,6 +9,7 @@ import {
   onPartnerLeft,
   onConnectionError,
   onDisconnect,
+  onConnectGlobal,
 } from "./socket/socket";
 
 import StartChat from "./components/StartChat";
@@ -85,9 +86,11 @@ function App() {
     });
 
     const cleanupDisconnect = onDisconnect((reason) => {
-      if (reason === "io server disconnect") {
-        resetToHome();
-      }
+      resetToHome();
+    });
+
+    const cleanupConnect = onConnectGlobal(() => {
+      setError(null);
     });
 
     return () => {
@@ -95,6 +98,7 @@ function App() {
       cleanupPartnerLeft?.();
       cleanupError?.();
       cleanupDisconnect?.();
+      cleanupConnect?.();
       disconnectSocket();
     };
   }, []); // ✅ DO NOT add mediaStream here
@@ -177,6 +181,7 @@ function App() {
 
         {status === "chat" && (
           <VideoChat
+            key={roomId}
             roomId={roomId}
             partnerId={partnerId}
             partnerName={partnerName}
