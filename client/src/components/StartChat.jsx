@@ -16,7 +16,7 @@ import {
 // Import your logo
 import ZivroLogo from "../assets/ZivroLogo.png";
 
-function StartChat({ onStart }) {
+function StartChat({ onStart, disabled }) {
   const [name, setName] = useState("");
   const [gender, setGender] = useState("");
   const [region, setRegion] = useState("");
@@ -321,10 +321,10 @@ function StartChat({ onStart }) {
                 onClick={handleSubmit}
                 className="w-full bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500 dark:from-purple-600 dark:via-pink-600 dark:to-purple-600 text-white font-bold py-4 sm:py-5 px-6 rounded-2xl shadow-2xl shadow-purple-500/50 dark:shadow-purple-600/50 hover:shadow-pink-500/50 dark:hover:shadow-pink-600/50 transition-all duration-500 hover:scale-105 active:scale-95 flex items-center justify-center gap-2 sm:gap-3 group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 text-sm sm:text-base animate-fade-in-up border-0"
                 style={{ animationDelay: "0.4s" }}
-                disabled={!name.trim() || !gender || !region.trim()}
+                disabled={disabled || !name.trim() || !gender || !region.trim()}
               >
                 <Users className="w-5 h-5 sm:w-6 sm:h-6 group-hover:rotate-12 transition-transform" />
-                Start Chatting Now
+                {disabled ? "Waiting for server..." : "Start Chatting Now"}
                 <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform" />
               </button>
             </div>

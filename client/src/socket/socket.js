@@ -12,9 +12,10 @@ if (!BACKEND_URL) {
 export const socket = io(BACKEND_URL, {
   autoConnect: false,
   reconnection: true,
-  reconnectionAttempts: 5,
+  reconnectionAttempts: 50,
   reconnectionDelay: 1000,
-  timeout: 10000,
+  reconnectionDelayMax: 3000,
+  timeout: 15000,
   transports: ["websocket", "polling"],
 });
 
@@ -29,25 +30,33 @@ export const connectSocket = () => {
       return;
     }
 
-    // console.log("🔌 Connecting socket to:", BACKEND_URL);
     socket.connect();
+
+    const cleanup = () => {
+      socket.off("connect", onConnect);
+      socket.off("connect_error", onError);
+      socket.io.off("reconnect_failed", onReconnectFailed);
+    };
 
     const onConnect = () => {
       console.log("✅ Socket connected:", socket.id);
-      socket.off("connect", onConnect);
-      socket.off("connect_error", onError);
+      cleanup();
       resolve();
     };
 
     const onError = (error) => {
-      console.error("❌ Socket connection failed:", error.message);
-      socket.off("connect", onConnect);
-      socket.off("connect_error", onError);
-      reject(error);
+      console.warn("⏳ Retrying connection...", error.message);
+    };
+
+    const onReconnectFailed = () => {
+      console.error("❌ All reconnection attempts exhausted");
+      cleanup();
+      reject(new Error("Could not connect after multiple attempts."));
     };
 
     socket.on("connect", onConnect);
     socket.on("connect_error", onError);
+    socket.io.on("reconnect_failed", onReconnectFailed);
   });
 };
 

@@ -34,6 +34,7 @@ function App() {
   const [partnerName, setPartnerName] = useState(null);
   const [isInitiator, setIsInitiator] = useState(false);
   const [error, setError] = useState(null);
+  const [serverReady, setServerReady] = useState(false);
 
   const [userData, setUserData] = useState(null);
   const [mediaStream, setMediaStream] = useState(null);
@@ -61,9 +62,15 @@ function App() {
   // SOCKET LIFECYCLE (RUN ONCE)
   // ===================================================
   useEffect(() => {
-    connectSocket().catch(() => {
-      setError("Failed to connect to server. Please refresh.");
-    });
+    setError("⏳ Server is waking up, please wait a moment...");
+    connectSocket()
+      .then(() => {
+        setServerReady(true);
+        setError(null);
+      })
+      .catch(() => {
+        setError("Could not reach server. Please refresh and try again.");
+      });
 
     const cleanupMatched = onMatched((data) => {
       setRoomId(data.roomId);
@@ -82,7 +89,8 @@ function App() {
     });
 
     const cleanupError = onConnectionError(() => {
-      setError("Connection lost. Reconnecting...");
+      setServerReady(false);
+      setError("⏳ Reconnecting to server, please wait...");
     });
 
     const cleanupDisconnect = onDisconnect((reason) => {
@@ -90,6 +98,7 @@ function App() {
     });
 
     const cleanupConnect = onConnectGlobal(() => {
+      setServerReady(true);
       setError(null);
     });
 
@@ -153,13 +162,15 @@ function App() {
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       {error && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-red-500 text-white px-6 py-3 rounded-xl">
+        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 text-white px-6 py-3 rounded-xl ${
+          serverReady ? 'bg-red-500' : 'bg-amber-500/90 backdrop-blur-sm'
+        }`}>
           {error}
         </div>
       )}
 
       <div className="min-h-screen flex items-center justify-center">
-        {status === "idle" && <StartChat onStart={handleStart} />}
+        {status === "idle" && <StartChat onStart={handleStart} disabled={!serverReady} />}
 
         {status === "permissions" && (
           <MediaPermissionModal
