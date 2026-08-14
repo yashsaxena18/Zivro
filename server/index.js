@@ -14,12 +14,10 @@ const redis = require("./redis");
 // ENV VALIDATION
 // ===================================================
 if (!process.env.REDIS_URL) {
-  console.error("❌ REDIS_URL is missing");
   process.exit(1);
 }
 
 if (!process.env.CLIENT_URL) {
-  console.error("❌ CLIENT_URL is missing");
   process.exit(1);
 }
 
@@ -78,7 +76,7 @@ app.get("/health", async (_req, res) => {
       env: NODE_ENV,
       uptime: process.uptime(),
     });
-  } catch (err) {
+  } catch {
     res.status(503).json({
       status: "redis-down",
     });
@@ -88,15 +86,11 @@ app.get("/health", async (_req, res) => {
 // ===================================================
 // GRACEFUL SHUTDOWN (RENDER SAFE)
 // ===================================================
-const shutdown = async (signal) => {
-  console.log(`🛑 ${signal} received`);
-
+const shutdown = async () => {
   try {
     io.close();
     server.close();
     await redis.quit();
-  } catch (err) {
-    console.error("Shutdown error:", err);
   } finally {
     process.exit(0);
   }
@@ -112,16 +106,8 @@ process.on("SIGTERM", shutdown);
   try {
     await redis.ping();
 
-    server.listen(PORT, "0.0.0.0", () => {
-      console.log("=================================");
-      console.log("🚀 Zivro Backend Running on Render");
-      // console.log(`🌍 ENV: ${NODE_ENV}`);
-      // console.log(`🔌 PORT: ${PORT}`);
-      // console.log(`🖥 CLIENT: ${CLIENT_URL}`);
-      // console.log("=================================");
-    });
-  } catch (err) {
-    console.error("❌ Server failed to start:", err);
+    server.listen(PORT, "0.0.0.0");
+  } catch {
     process.exit(1);
   }
 })();

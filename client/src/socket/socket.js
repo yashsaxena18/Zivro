@@ -4,10 +4,6 @@ import { io } from "socket.io-client";
 // ✅ MUST be env-based
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
-if (!BACKEND_URL) {
-  console.error("❌ VITE_BACKEND_URL is not defined");
-}
-
 // ✅ Create socket (DO NOT CONNECT YET)
 export const socket = io(BACKEND_URL, {
   autoConnect: false,
@@ -39,17 +35,15 @@ export const connectSocket = () => {
     };
 
     const onConnect = () => {
-      console.log("✅ Socket connected:", socket.id);
       cleanup();
       resolve();
     };
 
-    const onError = (error) => {
-      console.warn("⏳ Retrying connection...", error.message);
+    const onError = () => {
+      // Connection retries happen silently in production.
     };
 
     const onReconnectFailed = () => {
-      console.error("❌ All reconnection attempts exhausted");
       cleanup();
       reject(new Error("Could not connect after multiple attempts."));
     };
@@ -63,7 +57,6 @@ export const connectSocket = () => {
 export const disconnectSocket = () => {
   if (socket.connected) {
     socket.disconnect();
-    console.log("🔌 Socket disconnected");
   }
 };
 
@@ -73,31 +66,25 @@ export const disconnectSocket = () => {
 
 export const joinQueue = (userData) => {
   if (!socket.connected) {
-    console.error("❌ Cannot join queue: Socket not connected");
     return;
   }
 
-  console.log("📤 Joining queue:", userData);
   socket.emit("join-queue", userData);
 };
 
 export const leaveQueue = () => {
   if (!socket.connected) {
-    console.error("❌ Cannot leave queue: Socket not connected");
     return;
   }
 
-  console.log("🚪 Leaving queue");
   socket.emit("leave-queue");
 };
 
 export const nextUser = () => {
   if (!socket.connected) {
-    console.error("❌ Cannot skip: Socket not connected");
     return;
   }
 
-  console.log("⏭️ Next user");
   socket.emit("next");
 };
 
@@ -107,11 +94,9 @@ export const nextUser = () => {
 
 export const sendSignal = (to, data) => {
   if (!socket.connected) {
-    console.error("❌ Cannot send signal: Socket not connected");
     return;
   }
 
-  console.log("📡 Sending signal:", data.type, "→", to);
   socket.emit("signal", { to, data });
 };
 
@@ -121,7 +106,6 @@ export const sendSignal = (to, data) => {
 
 export const onMatched = (callback) => {
   const handler = (data) => {
-    console.log("🎯 Matched:", data);
     callback(data);
   };
 
@@ -131,7 +115,6 @@ export const onMatched = (callback) => {
 
 export const onSignal = (callback) => {
   const handler = ({ from, data }) => {
-    console.log("📡 Signal received:", data.type);
     callback({ from, data });
   };
 
@@ -141,7 +124,6 @@ export const onSignal = (callback) => {
 
 export const onPartnerLeft = (callback) => {
   const handler = () => {
-    console.log("👋 Partner left");
     callback();
   };
 
@@ -151,7 +133,6 @@ export const onPartnerLeft = (callback) => {
 
 export const onConnectionError = (callback) => {
   const handler = (error) => {
-    console.error("⚠️ Socket error:", error.message);
     callback(error);
   };
 
@@ -161,7 +142,6 @@ export const onConnectionError = (callback) => {
 
 export const onDisconnect = (callback) => {
   const handler = (reason) => {
-    console.warn("🔌 Disconnected:", reason);
     callback(reason);
   };
 
@@ -171,7 +151,6 @@ export const onDisconnect = (callback) => {
 
 export const onConnectGlobal = (callback) => {
   const handler = () => {
-    console.log("✅ Global socket connected/reconnected!");
     callback();
   };
 

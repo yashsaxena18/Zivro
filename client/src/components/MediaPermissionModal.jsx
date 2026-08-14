@@ -36,8 +36,7 @@ function MediaPermissionModal({ onAllow, onCancel }) {
         if (videoRef.current) {
           videoRef.current.srcObject = mediaStream;
         }
-      } catch (err) {
-        console.error("❌ Media permission denied:", err);
+      } catch {
         setError(
           "Camera or microphone access denied. Please allow access to continue."
         );

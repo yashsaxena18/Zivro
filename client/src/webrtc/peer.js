@@ -41,7 +41,6 @@ export function createPeer({
 }) {
   // 🔒 Prevent duplicate peers
   if (peerConnections.has(partnerId)) {
-    console.warn("⚠️ Peer already exists:", partnerId);
     return;
   }
 
@@ -102,8 +101,8 @@ export function createPeer({
           type: "offer",
           sdp: offer,
         });
-      } catch (err) {
-        console.error("❌ Offer creation failed:", err);
+      } catch {
+        // Ignore offer creation failures silently.
       }
     };
   }
@@ -115,7 +114,6 @@ export function createPeer({
 export async function handleSignal({ from, data }) {
   const pc = peerConnections.get(from);
   if (!pc) {
-    console.warn("⚠️ No peer for signal from:", from);
     return;
   }
 
@@ -161,10 +159,10 @@ export async function handleSignal({ from, data }) {
       }
 
       default:
-        console.warn("⚠️ Unknown signal type:", data.type);
+        break;
     }
-  } catch (err) {
-    console.error("❌ Signal handling error:", err);
+  } catch {
+    // Ignore signal handling failures silently.
   }
 }
 
@@ -203,8 +201,8 @@ export function closePeer(partnerId) {
     });
 
     pc.close();
-  } catch (err) {
-    console.warn("⚠️ Error closing peer:", err);
+  } catch {
+    // Ignore close errors silently.
   }
 
   peerConnections.delete(partnerId);

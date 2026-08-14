@@ -8,7 +8,6 @@ let isReady = false;
 const redisConfig = {
   retryStrategy(times) {
     const delay = Math.min(times * 100, 2000);
-    console.log(`🔄 Redis reconnecting... attempt ${times}`);
     return delay;
   },
 
@@ -44,30 +43,26 @@ const redis = process.env.REDIS_URL
 // ========================================
 
 redis.on("connect", () => {
-  console.log("🟢 Redis connected");
+  // Intentionally silent in production.
 });
 
 redis.on("ready", () => {
-  console.log("✅ Redis ready");
   isReady = true;
 
   // 🚨 CRITICAL: disable offline queue AFTER ready
   redis.options.enableOfflineQueue = false;
 });
 
-redis.on("reconnecting", (delay) => {
-  console.log(`🔄 Redis reconnecting in ${delay}ms`);
+redis.on("reconnecting", () => {
+  // Intentionally silent in production.
 });
 
-redis.on("error", (err) => {
-  console.error("❌ Redis error:", err.message);
-  if (process.env.NODE_ENV === "development") {
-    console.error(err);
-  }
+redis.on("error", () => {
+  // Intentionally silent in production.
 });
 
 redis.on("end", () => {
-  console.log("🛑 Redis connection closed");
+  // Intentionally silent in production.
 });
 
 // ========================================
@@ -102,8 +97,7 @@ redis.getStats = async () => {
       connected: redis.status === "ready",
       info,
     };
-  } catch (err) {
-    console.error("❌ Redis stats error:", err);
+  } catch {
     return null;
   }
 };
